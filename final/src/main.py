@@ -25,11 +25,6 @@ def printer_metrics(y_true, y_pred):
     return
 
 
-def train(c_ensemble, x, y):
-
-    return
-
-
 def main():
     print('***Datasets***')
     ((((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
