@@ -103,7 +103,6 @@ def read_csv_dataset(base_dir):
         debit_credit_to_numeric)
     # df_dp_tp = df_dp_tp.drop(['debit_credit'], axis=1)
 
-    df_dp_tp = df_dp_tp.drop(['tx_time'], axis=1)
     df_dp_tp = df_dp_tp.drop(['exchg_rate'], axis=1)
 
     df_dp_tp['tx_amt'].fillna(value=-1.0, inplace=True)
@@ -139,46 +138,46 @@ def read_csv_x(base_dir, mode):
     col: cust_id, trans_date, trans_no, trade_amount_usd
     '''
     df_alert_date = None
+    name = None
     if mode == 'train':
-        df_alert_date = pd.DataFrame(
-            pd.read_csv(
-                base_dir + 'train_x_alert_date.csv',
-                dtype={
-                    'alert_key': str,  # alert主鍵
-                    'date': int,  # alert主鍵發生日期 類別型 經過神秘轉換，數字序列有前後順序意義
-                }))
+        name = 'train_x_alert_date.csv'
     elif mode == 'public':
-        df_alert_date = pd.DataFrame(
-            pd.read_csv(
-                base_dir + 'public_x_alert_date.csv',
-                dtype={
-                    'alert_key': str,  # alert主鍵
-                    'date': int,  # alert主鍵發生日期 類別型 經過神秘轉換，數字序列有前後順序意義
-                }))
+        name = 'public_x_alert_date.csv'
     else:
         raise ValueError
 
+    df_alert_date = pd.DataFrame(
+        pd.read_csv(
+            base_dir + name,
+            dtype={
+                'alert_key': str,  # alert主鍵
+                'date': int,  # alert主鍵發生日期 類別型 經過神秘轉換，數字序列有前後順序意義
+            }))
     return df_alert_date
 
 
-def read_csv_y(base_dir, mode='train'):
+def read_csv_y(base_dir, mode):
     #
     '''
-    name: train_y_answer.csv
+    name: train_y_answer.csv, public_y_answer.csv
     col: alert_key, sar_flag
     '''
     df_answer = None
+    name = None
     if mode == 'train':
-        df_answer = pd.DataFrame(
-            pd.read_csv(
-                base_dir + 'train_y_answer.csv',
-                dtype={
-                    'alert_key': str,  # alert主鍵
-                    'sar_flag': int,  # alert主鍵報SAR與否 類別型 (0=未報SAR；1=有報SAR)
-                }))
+        name = 'train_y_answer.csv'
+    elif mode == 'public':
+        name = 'public_y_answer.csv'
     else:
         raise ValueError
 
+    df_answer = pd.DataFrame(
+        pd.read_csv(
+            base_dir + name,
+            dtype={
+                'alert_key': str,  # alert主鍵
+                'sar_flag': int,  # alert主鍵報SAR與否 類別型 (0=未報SAR；1=有報SAR)
+            }))
     return df_answer
 
 
@@ -633,6 +632,7 @@ def get_data_counter(df_datasets,
     # merge with label
     df_xy_t = pd.merge(df_x_ac_id_t, df_y, on='alert_key')
     df_xy_v = pd.merge(df_x_ac_id_v, df_y, on='alert_key')
+    df_xy_p = pd.merge(df_x_ac_id_p, df_y, on='alert_key')
 
     # final process
     ## train data & label
@@ -640,19 +640,32 @@ def get_data_counter(df_datasets,
     rt_ak_t = df_xy_t['alert_key'].to_numpy()
     rt_x_t = df_xy_t.drop(['alert_key', 'sar_flag'], axis=1)
 
+    ## validation data & label
     rt_y_v = df_xy_v['sar_flag'].to_numpy()
     rt_ak_v = df_xy_v['alert_key'].to_numpy()
     rt_x_v = df_xy_v.drop(['alert_key', 'sar_flag'], axis=1)
 
+    ## public data & label
+    rt_y_p = df_xy_p['sar_flag'].to_numpy()
+    rt_ak_p = df_xy_p['alert_key'].to_numpy()
+    rt_x_p = df_xy_p.drop(['alert_key', 'sar_flag'], axis=1)
+
     ## test data
-    df_x_all = pd.concat([df_x_ac_id_t, df_x_ac_id_v, df_x_ac_id_p],
-                         axis=0,
-                         ignore_index=True)
-    rt_ak_all = df_x_all['alert_key'].to_numpy()
-    rt_x_all = df_x_all.drop(['alert_key'], axis=1)
+    # df_x_all = pd.concat([df_x_ac_id_t, df_x_ac_id_v, df_x_ac_id_p],
+    #                      axis=0,
+    #                      ignore_index=True)
+    # rt_ak_all = df_x_all['alert_key'].to_numpy()
+    # rt_x_all = df_x_all.drop(['alert_key'], axis=1)
+
+    df_xy_all = pd.concat([df_xy_t, df_xy_v, df_xy_p],
+                          axis=0,
+                          ignore_index=True)
+    rt_y_all = df_xy_all['sar_flag'].to_numpy()
+    rt_ak_all = df_xy_all['alert_key'].to_numpy()
+    rt_x_all = df_xy_all.drop(['alert_key', 'sar_flag'], axis=1)
 
     return ((rt_x_t, rt_y_t, rt_ak_t), (rt_x_v, rt_y_v, rt_ak_v),
-            (rt_x_all, None, rt_ak_all))
+            (rt_x_p, rt_y_p, rt_ak_p), (rt_x_all, rt_y_all, rt_ak_all))
 
 
 def get_datasets(df_datasets,
@@ -701,40 +714,56 @@ def get_datasets(df_datasets,
 
     # public: get x, y, alert_key
     print("public")
-    ccba_x_p, _, ccba_ak_p = get_ccba_y(df_x_p, df_datasets, break_id=break_id)
-    cdtx_x_p, _, cdtx_ak_p = get_cdtx0001_y(df_x_p,
-                                            df_datasets,
-                                            break_id=break_id)
-    dp_x_p, _, dp_ak_p = get_dp_y(df_x_p, df_datasets, break_id=break_id)
-    remit_x_p, _, remit_ak_p = get_remit1_y(df_x_p,
-                                            df_datasets,
-                                            break_id=break_id)
+    ccba_x_p, ccba_y_p, ccba_ak_p = get_ccba_y(df_x_p,
+                                               df_datasets,
+                                               df_y,
+                                               break_id=break_id)
+    cdtx_x_p, cdtx_y_p, cdtx_ak_p = get_cdtx0001_y(df_x_p,
+                                                   df_datasets,
+                                                   df_y,
+                                                   break_id=break_id)
+    dp_x_p, dp_y_p, dp_ak_p = get_dp_y(df_x_p,
+                                       df_datasets,
+                                       df_y,
+                                       break_id=break_id)
+    remit_x_p, remit_y_p, remit_ak_p = get_remit1_y(df_x_p,
+                                                    df_datasets,
+                                                    df_y,
+                                                    break_id=break_id)
 
     ## test data
     ccba_x_all = pd.concat([ccba_x_t, ccba_x_v, ccba_x_p],
                            axis=0,
                            ignore_index=True)
+    ccba_y_all = np.concatenate([ccba_y_t, ccba_y_v, ccba_y_p])
     ccba_ak_all = np.concatenate([ccba_ak_t, ccba_ak_v, ccba_ak_p])
 
     cdtx_x_all = pd.concat([cdtx_x_t, cdtx_x_v, cdtx_x_p],
                            axis=0,
                            ignore_index=True)
+    cdtx_y_all = np.concatenate([cdtx_y_t, cdtx_y_v, cdtx_y_p])
     cdtx_ak_all = np.concatenate([cdtx_ak_t, cdtx_ak_v, cdtx_ak_p])
 
     dp_x_all = pd.concat([dp_x_t, dp_x_v, dp_x_p], axis=0, ignore_index=True)
+    dp_y_all = np.concatenate([dp_y_t, dp_y_v, dp_y_p])
     dp_ak_all = np.concatenate([dp_ak_t, dp_ak_v, dp_ak_p])
 
     remit_x_all = pd.concat([remit_x_t, remit_x_v, remit_x_p],
                             axis=0,
                             ignore_index=True)
+    remit_y_all = np.concatenate([remit_y_t, remit_y_v, remit_y_p])
     remit_ak_all = np.concatenate([remit_ak_t, remit_ak_v, remit_ak_p])
 
     return (((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
              (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
             ((ccba_x_v, ccba_y_v, ccba_ak_v), (cdtx_x_v, cdtx_y_v, cdtx_ak_v),
              (dp_x_v, dp_y_v, dp_ak_v), (remit_x_v, remit_y_v, remit_ak_v)),
-            ((ccba_x_all, None, ccba_ak_all), (cdtx_x_all, None, cdtx_ak_all),
-             (dp_x_all, None, dp_ak_all), (remit_x_all, None, remit_ak_all)))
+            ((ccba_x_p, ccba_y_p, ccba_ak_p), (cdtx_x_p, cdtx_y_p, cdtx_ak_p),
+             (dp_x_p, dp_y_p, dp_ak_p), (remit_x_p, remit_y_p, remit_ak_p)),
+            ((ccba_x_all, ccba_y_all, ccba_ak_all), (cdtx_x_all, cdtx_y_all,
+                                                     cdtx_ak_all),
+             (dp_x_all, dp_y_all, dp_ak_all), (remit_x_all, remit_y_all,
+                                               remit_ak_all)))
 
 
 def do_workhouse(v_split: float = 0.1, break_id: int = -1):
@@ -768,8 +797,13 @@ def do_workhouse(v_split: float = 0.1, break_id: int = -1):
     print('csv | x - public')
     df_x_p = read_csv_x(base_dir='./data/', mode='public')
 
-    print('csv | y')
-    df_y = read_csv_y(base_dir='./data/')
+    print('csv | y - train')
+    df_y_t = read_csv_y(base_dir='./data/', mode='train')
+
+    print('csv | y - public')
+    df_y_p = read_csv_y(base_dir='./data/', mode='public')
+
+    df_y = pd.concat([df_y_t, df_y_p], axis=0, ignore_index=True)
 
     ## the getter ##
     print('getter | datasets')

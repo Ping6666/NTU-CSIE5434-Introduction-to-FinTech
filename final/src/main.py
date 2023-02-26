@@ -45,10 +45,15 @@ def printer_recall_precision(y_true, y_pred):
         print("Recall@N-1 Precision", ((len(arg_ids) - 1) / rp))
     else:
         print("Recall@N-1 Precision fail to compute")
+    print()
+
     return
 
 
 def printer_metrics(y_true, y_pred):
+    import warnings
+    warnings.filterwarnings('ignore')
+
     print("accuracy:", metrics.accuracy_score(y_true, y_pred))
     print("precision:", metrics.precision_score(y_true, y_pred))
     print("recall:", metrics.recall_score(y_true, y_pred))
@@ -177,7 +182,7 @@ def prediction(name: str,
 
 def main():
     threshold = 1.0  # 0.5, 1.0
-    break_id = -1  # -1, 200, 500
+    break_id = 200  # -1, 200, 500
 
     print('***Datasets***')
     '''
@@ -193,17 +198,24 @@ def main():
             # validation
             ((ccba_x_v, ccba_y_v, ccba_ak_v), (cdtx_x_v, cdtx_y_v, cdtx_ak_v),
              (dp_x_v, dp_y_v, dp_ak_v), (remit_x_v, remit_y_v, remit_ak_v)),
+            # public
+            ((ccba_x_p, ccba_y_p, ccba_ak_p), (cdtx_x_p, cdtx_y_p, cdtx_ak_p),
+             (dp_x_p, dp_y_p, dp_ak_p), (remit_x_p, remit_y_p, remit_ak_p)),
             # all
-            ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
-             (dp_x_all, _, dp_ak_all), (remit_x_all, _, remit_ak_all)),
+            ((ccba_x_all, ccba_y_all, ccba_ak_all), (cdtx_x_all, cdtx_y_all,
+                                                     cdtx_ak_all),
+             (dp_x_all, dp_y_all, dp_ak_all), (remit_x_all, remit_y_all,
+                                               remit_ak_all)),
         ),
         (
             # train
             (rt_x_t, rt_y_t, rt_ak_t),
             # validation
             (rt_x_v, rt_y_v, rt_ak_v),
+            # public
+            (rt_x_p, rt_y_p, rt_ak_p),
             # all
-            (rt_x_all, _, rt_ak_all),
+            (rt_x_all, rt_y_all, rt_ak_all),
         ),
     ) = d.do_workhouse(break_id=break_id)
 
@@ -236,6 +248,16 @@ def main():
         rt_y_v,
     )
 
+    # validation
+    prediction(
+        'public',
+        threshold,
+        (ccba_model, cdtx_model, dp_model, remit_model, c_model),
+        (ccba_x_p, cdtx_x_p, dp_x_p, remit_x_p, rt_x_p),
+        (ccba_ak_p, cdtx_ak_p, dp_ak_p, remit_ak_p, rt_ak_p),
+        rt_y_p,
+    )
+
     # test
     y_pred_all = prediction(
         'test',
@@ -243,6 +265,7 @@ def main():
         (ccba_model, cdtx_model, dp_model, remit_model, c_model),
         (ccba_x_all, cdtx_x_all, dp_x_all, remit_x_all, rt_x_all),
         (ccba_ak_all, cdtx_ak_all, dp_ak_all, remit_ak_all, rt_ak_all),
+        rt_y_all,
     )
 
     print('***Predict on final test***')
