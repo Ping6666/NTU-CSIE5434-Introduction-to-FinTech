@@ -1,0 +1,9 @@
+# requirements
+pandas
+
+sympy
+gmpy2
+ecdsa
+
+ipykernel
+yapf

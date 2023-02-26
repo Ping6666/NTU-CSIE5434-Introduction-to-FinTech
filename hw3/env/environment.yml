@@ -1,0 +1,10 @@
+name: fintech-hw3
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - python=3.9
+  - pip
+  - pip:
+    - --find-links https://download.pytorch.org/whl/torch_stable.html
+    - --requirement requirements.txt  
