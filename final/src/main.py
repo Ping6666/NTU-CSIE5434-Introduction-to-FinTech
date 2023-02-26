@@ -4,52 +4,7 @@ import pandas as pd
 from sklearn import metrics, ensemble
 
 import data as d
-
-
-def ensemble_workhouse():
-    # NOT GOOD ??? #
-    # c_ensemble = ensemble.AdaBoostRegressor(n_estimators=200, learning_rate=1)
-
-    # NOT GOOD ??? #
-    # but output with -1 or 1
-    # c_ensemble = ensemble.IsolationForest(n_estimators=200)
-
-    # NOT GOOD ??? #
-    # but output between -1 or 1
-    # c_ensemble = ensemble.HistGradientBoostingRegressor(learning_rate=1)
-
-    # VERY GOOD ??? #
-    # given (train_y_pred >= 0.1).astype(int)
-    # accuracy: 1.0
-    # precision: 1.0
-    # recall: 1.0
-    # f1: 1.0
-    # r2: 1.0
-    # c_ensemble = ensemble.ExtraTreesRegressor(n_estimators=200)
-
-    # GOOD ??? #
-    # given (train_y_pred >= 0.1).astype(int)
-    # accuracy: 0.9961934242449594
-    # precision: 0.72
-    # recall: 1.0
-    # f1: 0.8372093023255813
-    # r2: 0.6072669069880966
-    c_ensemble = ensemble.RandomForestRegressor(n_estimators=200)
-
-    # GOOD ??? #
-    # given (train_y_pred >= 0.1).astype(int)
-    # accuracy: 0.9961097632393542
-    # precision: 0.7155963302752294
-    # recall: 1.0
-    # f1: 0.8342245989304813
-    # r2: 0.5986354104383844
-    # c_ensemble = ensemble.BaggingRegressor(n_estimators=200)
-
-    # GOOD ??? #
-    # but output between -1 or 1
-    # c_ensemble = ensemble.GradientBoostingRegressor(n_estimators=200,
-    #                                                 learning_rate=1)
-    return c_ensemble
+import model as m
 
 
 def printer_unique_counter(n: np.ndarray, pre_str: str = None):
@@ -70,12 +25,33 @@ def printer_metrics(y_true, y_pred):
     return
 
 
+def train(c_ensemble, x, y):
+
+    return
+
+
 def main():
-    (rt_x_t, rt_y_t, _), (rt_x_all, _, rt_ak_all) = d.df_workhouse()
+    (((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
+      (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
+     ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
+      (dp_x_all, _, dp_ak_all), (remit_x_all, _,
+                                 remit_ak_all))) = d.df_workhouse()
 
     print('***Training***')
-    c_ensemble = ensemble_workhouse()
-    c_model = c_ensemble.fit(rt_x_t, rt_y_t)
+    ccba_ensemble = m.ensemble_workhouse()
+    ccba_model = ccba_ensemble.fit(ccba_x_t, ccba_y_t)
+
+    cdtx_ensemble = m.ensemble_workhouse()
+    cdtx_model = cdtx_ensemble.fit(cdtx_x_t, cdtx_y_t)
+
+    dp_ensemble = m.ensemble_workhouse()
+    dp_model = dp_ensemble.fit(dp_x_t, dp_y_t)
+
+    remit_ensemble = m.ensemble_workhouse()
+    remit_model = remit_ensemble.fit(remit_x_t, remit_y_t)
+
+    print('GOOD')
+    exit(0)
 
     print('***Predict on train***')
     printer_unique_counter(rt_y_t, 'distribution of train data:')
