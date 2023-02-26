@@ -522,47 +522,118 @@ def get_remit1_y(df_x: pd.DataFrame,
         return rt_x, None, rt_ak
 
 
-def get_answer_form(alert_keys: list, probability: list):
-    df = pd.DataFrame(list(zip(alert_keys, probability)),
-                      columns=['alert_key', 'probability'])
-    return df
+def _get_data_counter(df_alert: pd.DataFrame,
+                      dfs: Tuple[pd.DataFrame],
+                      break_id: int = -1):
+    df_ccba: pd.DataFrame
+    df_cdtx0001: pd.DataFrame
+    df_custinfo: pd.DataFrame
+    df_dp: pd.DataFrame
+    df_remit1: pd.DataFrame
+    df_ccba, df_cdtx0001, df_custinfo, df_dp, df_remit1 = dfs
+
+    ids_datasets = []
+    for i, c_row in tqdm(df_alert.iterrows(), total=df_alert.shape[0]):
+        if i == break_id:
+            break
+
+        # custinfo
+        c_cust_id = df_custinfo.loc[(
+            df_custinfo['alert_key'] == c_row['alert_key'])]
+        c_cust_id = c_cust_id['cust_id'].values[0]
+        c_date = c_row['date']
+
+        # ccba
+        c_ccba = ((df_ccba['cust_id'] == c_cust_id) &
+                  (df_ccba['byymm'] <= c_date)
+                  & (df_ccba['byymm'] > c_date - 30)).sum()
+        # c_ccba = df_ccba.loc[((df_ccba['cust_id'] == c_cust_id) &
+        #                       (df_ccba['byymm'] <= c_date) &
+        #                       (df_ccba['byymm'] > c_date - 30))]
+
+        # cdtx0001
+        c_cdtx0001 = ((df_cdtx0001['cust_id'] == c_cust_id) &
+                      (df_cdtx0001['date'] <= c_date) &
+                      (df_cdtx0001['date'] > c_date - 30)).sum()
+        # c_cdtx0001 = df_cdtx0001.loc[((df_cdtx0001['cust_id'] == c_cust_id) &
+        #                               (df_cdtx0001['date'] <= c_date) &
+        #                               (df_cdtx0001['date'] > c_date - 30))]
+
+        # dp
+        c_dp = ((df_dp['cust_id'] == c_cust_id) & (df_dp['tx_date'] <= c_date)
+                & (df_dp['tx_date'] > c_date - 30)).sum()
+        # c_dp = df_dp.loc[((df_dp['cust_id'] == c_cust_id) &
+        #                   (df_dp['tx_date'] <= c_date) &
+        #                   (df_dp['tx_date'] > c_date - 30))]
+
+        # remit1
+        c_remit1 = ((df_remit1['cust_id'] == c_cust_id) &
+                    (df_remit1['trans_date'] <= c_date) &
+                    (df_remit1['trans_date'] > c_date - 30)).sum()
+        # c_remit1 = df_remit1.loc[((df_remit1['cust_id'] == c_cust_id) &
+        #                           (df_remit1['trans_date'] <= c_date) &
+        #                           (df_remit1['trans_date'] > c_date - 30))]
+
+        ids_datasets.append({
+            # 'cust_id': c_cust_id,
+            'n_ccba': c_ccba,
+            'n_cdtx0001': c_cdtx0001,
+            'n_dp': c_dp,
+            'n_remit1': c_remit1,
+        })
+    df_id = pd.DataFrame.from_dict(ids_datasets)
+
+    df_ac = pd.merge(df_alert, df_custinfo, on='alert_key')
+    df_ac_id = pd.concat([df_ac, df_id], axis=1)
+    df_ac_id = df_ac_id.drop(['date', 'cust_id'], axis=1)
+    df_ac_id = df_ac_id.dropna()
+
+    return df_ac_id
 
 
-def get_submit(df: pd.DataFrame, save_name: str = None):
-    """
-    correct from the dataset and pred_list to answer dataframe
-    and save
-    """
-    submit_list = read_csv_submit_list(base_dir='./data/')
+def get_ak_adj_list(y_alert_keys: list, y_pred: list,
+                    all_alert_keys: list) -> list:
+    # for those in y_alert_keys
+    rt_dict = {}
+    for ak, y in zip(y_alert_keys, y_pred):
+        if ak not in rt_dict.keys() or rt_dict[ak] < y:
+            rt_dict[ak] = y
 
-    # filter out the alert_key not in submit_list
-    df = df[df['alert_key'].isin(submit_list)]
-
-    # get what is left from the submit_list, make it to pd.DataFrame and set probability
-    diff_list = list(set(submit_list) - set(df['alert_key'].to_list()))
-    df_diff = pd.DataFrame(diff_list, columns=['alert_key'])
-    df_diff['probability'] = 0
-
-    # concat the dataframe
-    df = pd.concat([df, df_diff], axis=0, ignore_index=True)
-    df = df.sort_values(by=['probability'], ascending=False)
-    # df = df.sort_values(by=['probability'], ascending=True)
-
-    ## checker ##
-    assert len(df.index) == len(df['alert_key'].unique())
-
-    if save_name != None:
-        df.to_csv(save_name, index=False)
-    return df
+    # adj. the rt_dict to list like w/ seq. as all_alert_keys
+    rt_list = []
+    for ak in all_alert_keys:
+        if ak not in rt_dict.keys():
+            rt_list.append(-1)
+        else:
+            rt_list.append(rt_dict[ak])
+    return rt_list
 
 
-def df_workhouse(break_id: int = -1):
-    # read csv
-    df_datasets = read_csv_dataset(base_dir='./data/')
-    df_x_t = read_csv_x(base_dir='./data/', mode='train')
-    df_x_p = read_csv_x(base_dir='./data/', mode='public')
-    df_y = read_csv_y(base_dir='./data/')
+def get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
+    # get alert_key, custinfo, counter
+    df_x_ac_id_t = _get_data_counter(df_x_t, df_datasets, break_id)
+    df_x_ac_id_p = _get_data_counter(df_x_p, df_datasets, break_id)
 
+    # merge with label
+    df_xy_t = pd.merge(df_x_ac_id_t, df_y, on='alert_key')
+
+    # final process
+    ## train data & label
+    rt_y_t = df_xy_t['sar_flag'].to_numpy()
+    rt_ak_t = df_xy_t['alert_key'].to_numpy()
+    rt_x_t = df_xy_t.drop(['alert_key', 'sar_flag'], axis=1)
+
+    ## test data
+    df_x_all = pd.concat([df_x_ac_id_t, df_x_ac_id_p],
+                         axis=0,
+                         ignore_index=True)
+    rt_ak_all = df_x_all['alert_key'].to_numpy()
+    rt_x_all = df_x_all.drop(['alert_key'], axis=1)
+
+    return (rt_x_t, rt_y_t, rt_ak_t), (rt_x_all, None, rt_ak_all)
+
+
+def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
     # train: get x, y, alert_key
     ccba_x_t, ccba_y_t, ccba_ak_t = get_ccba_y(df_x_t,
                                                df_datasets,
@@ -610,8 +681,56 @@ def df_workhouse(break_id: int = -1):
              (dp_x_all, None, dp_ak_all), (remit_x_all, None, remit_ak_all)))
 
 
+def do_workhouse(break_id: int = -1):
+    # read csv
+    df_datasets = read_csv_dataset(base_dir='./data/')
+    df_x_t = read_csv_x(base_dir='./data/', mode='train')
+    df_x_p = read_csv_x(base_dir='./data/', mode='public')
+    df_y = read_csv_y(base_dir='./data/')
+
+    # the getter
+    d = get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id)
+    dc = get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id)
+
+    return d, dc
+
+
+def get_answer_form(alert_keys: list, probability: list):
+    df = pd.DataFrame(list(zip(alert_keys, probability)),
+                      columns=['alert_key', 'probability'])
+    return df
+
+
+def get_submit(df: pd.DataFrame, save_name: str = None):
+    """
+    correct from the dataset and pred_list to answer dataframe
+    and save
+    """
+    submit_list = read_csv_submit_list(base_dir='./data/')
+
+    # filter out the alert_key not in submit_list
+    df = df[df['alert_key'].isin(submit_list)]
+
+    # get what is left from the submit_list, make it to pd.DataFrame and set probability
+    diff_list = list(set(submit_list) - set(df['alert_key'].to_list()))
+    df_diff = pd.DataFrame(diff_list, columns=['alert_key'])
+    df_diff['probability'] = 0
+
+    # concat the dataframe
+    df = pd.concat([df, df_diff], axis=0, ignore_index=True)
+    df = df.sort_values(by=['probability'], ascending=False)
+    # df = df.sort_values(by=['probability'], ascending=True)
+
+    ## checker ##
+    assert len(df.index) == len(df['alert_key'].unique())
+
+    if save_name != None:
+        df.to_csv(save_name, index=False)
+    return df
+
+
 def main():
-    df_workhouse(100)
+    do_workhouse(100)
     print('Done')
     return
 

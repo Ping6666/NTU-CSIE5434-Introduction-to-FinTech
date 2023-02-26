@@ -31,27 +31,51 @@ def train(c_ensemble, x, y):
 
 
 def main():
-    (((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
-      (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
-     ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
-      (dp_x_all, _, dp_ak_all), (remit_x_all, _,
-                                 remit_ak_all))) = d.df_workhouse()
+    print('***Datasets***')
+    ((((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
+       (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
+      ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
+       (dp_x_all, _, dp_ak_all), (remit_x_all, _, remit_ak_all))),
+     ((rt_x_t, rt_y_t, rt_ak_t), (rt_x_all, _, rt_ak_all))) = d.do_workhouse()
 
     print('***Training***')
     ccba_ensemble = m.ensemble_workhouse()
+    print('ccba_x_t', ccba_x_t.columns)
     ccba_model = ccba_ensemble.fit(ccba_x_t, ccba_y_t)
 
     cdtx_ensemble = m.ensemble_workhouse()
+    print('cdtx_x_t', cdtx_x_t.columns)
     cdtx_model = cdtx_ensemble.fit(cdtx_x_t, cdtx_y_t)
 
     dp_ensemble = m.ensemble_workhouse()
+    print('dp_x_t', dp_x_t.columns)
     dp_model = dp_ensemble.fit(dp_x_t, dp_y_t)
 
     remit_ensemble = m.ensemble_workhouse()
+    print('remit_x_t', remit_x_t.columns)
     remit_model = remit_ensemble.fit(remit_x_t, remit_y_t)
 
-    print('GOOD')
-    exit(0)
+    print('***Final Training***')
+    ccba_y_pred_t = ccba_model.predict(ccba_x_t)
+    cdtx_y_pred_t = cdtx_model.predict(cdtx_x_t)
+    dp_y_pred_t = dp_model.predict(dp_x_t)
+    remit_y_pred_t = remit_model.predict(remit_x_t)
+
+    # convert 2d-like list to 1d list (w/ seq. right)
+    ccba_y_pred_t_adj = d.get_ak_adj_list(ccba_ak_t, ccba_y_pred_t, rt_ak_t)
+    cdtx_y_pred_t_adj = d.get_ak_adj_list(cdtx_ak_t, cdtx_y_pred_t, rt_ak_t)
+    dp_y_pred_t_adj = d.get_ak_adj_list(dp_ak_t, dp_y_pred_t, rt_ak_t)
+    remit_y_pred_t_adj = d.get_ak_adj_list(remit_ak_t, remit_y_pred_t, rt_ak_t)
+
+    # set to the dataset
+    rt_x_t['ccba'] = ccba_y_pred_t_adj
+    rt_x_t['cdtx0001'] = cdtx_y_pred_t_adj
+    rt_x_t['dp'] = dp_y_pred_t_adj
+    rt_x_t['remit1'] = remit_y_pred_t_adj
+
+    c_ensemble = m.ensemble_workhouse()
+    print('rt_x_t', rt_x_t.columns)
+    c_model = c_ensemble.fit(rt_x_t, rt_y_t)
 
     print('***Predict on train***')
     printer_unique_counter(rt_y_t, 'distribution of train data:')
@@ -65,6 +89,9 @@ def main():
         y_pred_t, 'distribution of predict on train (classification):')
 
     printer_metrics(rt_y_t, y_pred_t)
+
+    print('GOOD')
+    exit(0)
 
     print('***Predict on test***')
     y_pred_all = c_model.predict(rt_x_all)
