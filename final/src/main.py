@@ -16,6 +16,38 @@ def printer_unique_counter(n: np.ndarray, pre_str: str = None):
     return
 
 
+def printer_recall_precision(y_true, y_pred):
+    ## Recall@N-1 Precision ##
+    # argsort (descending order)
+    y_pred_argsort = np.argsort(-1 * y_pred)
+
+    arg_ids = []
+    for i, t in enumerate(y_true):
+        if t == 1:
+            # if got sar_flag, save the arg_id
+            arg_ids.append(i)
+
+    print('sar_flag: ', arg_ids)
+
+    rp_ids = []
+    for i, pa in enumerate(y_pred_argsort):
+        if pa in arg_ids:
+            # if should report sar_flag, save the report seq.
+            rp_ids.append(i + 1)
+
+    print('pred sar_flag: ', rp_ids)
+
+    assert len(arg_ids) == len(rp_ids), 'sar_flag poison'
+
+    if len(rp_ids) >= 2:
+        rp_id = np.argsort(rp_ids)[-2]
+        rp = rp_ids[rp_id]
+        print("Recall@N-1 Precision", ((len(arg_ids) - 1) / rp))
+    else:
+        print("Recall@N-1 Precision fail to compute")
+    return
+
+
 def printer_metrics(y_true, y_pred):
     print("accuracy:", metrics.accuracy_score(y_true, y_pred))
     print("precision:", metrics.precision_score(y_true, y_pred))
@@ -137,6 +169,7 @@ def prediction(name: str,
     )
 
     if y is not None:
+        printer_recall_precision(y, y_pred_class)
         printer_metrics(y, y_pred_class)
 
     return y_pred
@@ -144,7 +177,7 @@ def prediction(name: str,
 
 def main():
     threshold = 0.5
-    break_id = -1  # 200
+    break_id = 500  # -1, 200, 500
 
     print('***Datasets***')
     '''
