@@ -103,6 +103,9 @@ def read_csv_dataset(base_dir):
         debit_credit_to_numeric)
     # df_dp_tp = df_dp_tp.drop(['debit_credit'], axis=1)
 
+    df_dp_tp = df_dp_tp.drop(['tx_time'], axis=1)
+    df_dp_tp = df_dp_tp.drop(['exchg_rate'], axis=1)
+
     df_dp_tp['tx_amt'].fillna(value=-1.0, inplace=True)
     df_dp_tp['fiscTxId'].fillna(value=-1.0, inplace=True)
     df_dp_tp['txbranch'].fillna(value=-1.0, inplace=True)
@@ -598,8 +601,10 @@ def get_ak_adj_list(y_alert_keys: list, y_pred: list,
     # for those in y_alert_keys
     rt_dict = {}
     for ak, y in zip(y_alert_keys, y_pred):
-        if ak not in rt_dict.keys() or rt_dict[ak] < y:
+        if ak not in rt_dict.keys():
             rt_dict[ak] = y
+        else:
+            rt_dict[ak] += y
 
     # adj. the rt_dict to list like w/ seq. as all_alert_keys
     rt_list = []

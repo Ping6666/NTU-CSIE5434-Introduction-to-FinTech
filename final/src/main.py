@@ -169,15 +169,15 @@ def prediction(name: str,
     )
 
     if y is not None:
-        printer_recall_precision(y, y_pred_class)
         printer_metrics(y, y_pred_class)
+        printer_recall_precision(y, y_pred_class)
 
     return y_pred
 
 
 def main():
-    threshold = 0.5
-    break_id = 500  # -1, 200, 500
+    threshold = 1.0  # 0.5, 1.0
+    break_id = -1  # -1, 200, 500
 
     print('***Datasets***')
     '''
