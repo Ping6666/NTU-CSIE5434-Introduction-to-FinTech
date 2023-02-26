@@ -1,4 +1,4 @@
-# NTU CSIE5434 Introduction to FinTech
+# Introduction to FinTech
 
 111-01 NTU CSIE5434 Introduction to FinTech
 
