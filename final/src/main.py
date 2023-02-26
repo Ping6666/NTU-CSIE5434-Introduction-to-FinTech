@@ -1,7 +1,8 @@
-import numpy as np
-import pandas as pd
+from typing import Tuple
 
-from sklearn import metrics, ensemble
+import numpy as np
+
+from sklearn import metrics
 
 import data as d
 import model as m
@@ -25,93 +26,191 @@ def printer_metrics(y_true, y_pred):
     return
 
 
-def main():
-    print('***Datasets***')
-    ((((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
-       (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
-      ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
-       (dp_x_all, _, dp_ak_all), (remit_x_all, _, remit_ak_all))),
-     ((rt_x_t, rt_y_t, rt_ak_t), (rt_x_all, _, rt_ak_all))) = d.do_workhouse()
+def training(xs, ys, aks):
+    # checker
+    assert len(xs) == 5, 'xs must be len 5 tuple'
+    assert len(ys) == 5, 'ys must be len 5 tuple'
+    assert len(aks) == 5, 'aks must be len 5 tuple'
+
+    # input
+    ccba_x, cdtx_x, dp_x, remit_x, rt_x = xs
+    ccba_y, cdtx_y, dp_y, remit_y, rt_y = ys
+    ccba_ak, cdtx_ak, dp_ak, remit_ak, rt_ak = aks
 
     print('***Training***')
+
+    # ccba
     ccba_ensemble = m.ensemble_workhouse()
-    print('ccba_x_t', ccba_x_t.columns.tolist())
-    ccba_model = ccba_ensemble.fit(ccba_x_t, ccba_y_t)
+    print('ccba_x', ccba_x.columns.tolist())
+    ccba_model = ccba_ensemble.fit(ccba_x, ccba_y)
 
+    # cdtx
     cdtx_ensemble = m.ensemble_workhouse()
-    print('cdtx_x_t', cdtx_x_t.columns.tolist())
-    cdtx_model = cdtx_ensemble.fit(cdtx_x_t, cdtx_y_t)
+    print('cdtx_x', cdtx_x.columns.tolist())
+    cdtx_model = cdtx_ensemble.fit(cdtx_x, cdtx_y)
 
+    # dp
     dp_ensemble = m.ensemble_workhouse()
-    print('dp_x_t', dp_x_t.columns.tolist())
-    dp_model = dp_ensemble.fit(dp_x_t, dp_y_t)
+    print('dp_x', dp_x.columns.tolist())
+    dp_model = dp_ensemble.fit(dp_x, dp_y)
 
+    # remit
     remit_ensemble = m.ensemble_workhouse()
-    print('remit_x_t', remit_x_t.columns.tolist())
-    remit_model = remit_ensemble.fit(remit_x_t, remit_y_t)
+    print('remit_x', remit_x.columns.tolist())
+    remit_model = remit_ensemble.fit(remit_x, remit_y)
 
     print('***Final Training***')
     # predict
-    ccba_y_pred_t = ccba_model.predict(ccba_x_t)
-    cdtx_y_pred_t = cdtx_model.predict(cdtx_x_t)
-    dp_y_pred_t = dp_model.predict(dp_x_t)
-    remit_y_pred_t = remit_model.predict(remit_x_t)
+    ccba_y_pred = ccba_model.predict(ccba_x)
+    cdtx_y_pred = cdtx_model.predict(cdtx_x)
+    dp_y_pred = dp_model.predict(dp_x)
+    remit_y_pred = remit_model.predict(remit_x)
 
     # convert 2d-like list to 1d list (w/ seq. right)
-    ccba_y_pred_t_adj = d.get_ak_adj_list(ccba_ak_t, ccba_y_pred_t, rt_ak_t)
-    cdtx_y_pred_t_adj = d.get_ak_adj_list(cdtx_ak_t, cdtx_y_pred_t, rt_ak_t)
-    dp_y_pred_t_adj = d.get_ak_adj_list(dp_ak_t, dp_y_pred_t, rt_ak_t)
-    remit_y_pred_t_adj = d.get_ak_adj_list(remit_ak_t, remit_y_pred_t, rt_ak_t)
+    ccba_y_pred_adj = d.get_ak_adj_list(ccba_ak, ccba_y_pred, rt_ak)
+    cdtx_y_pred_adj = d.get_ak_adj_list(cdtx_ak, cdtx_y_pred, rt_ak)
+    dp_y_pred_adj = d.get_ak_adj_list(dp_ak, dp_y_pred, rt_ak)
+    remit_y_pred_adj = d.get_ak_adj_list(remit_ak, remit_y_pred, rt_ak)
 
     # set to the dataset
-    rt_x_t['ccba'] = ccba_y_pred_t_adj
-    rt_x_t['cdtx0001'] = cdtx_y_pred_t_adj
-    rt_x_t['dp'] = dp_y_pred_t_adj
-    rt_x_t['remit1'] = remit_y_pred_t_adj
+    rt_x['ccba'] = ccba_y_pred_adj
+    rt_x['cdtx0001'] = cdtx_y_pred_adj
+    rt_x['dp'] = dp_y_pred_adj
+    rt_x['remit1'] = remit_y_pred_adj
 
     c_ensemble = m.ensemble_workhouse()
-    print('rt_x_t', rt_x_t.columns.tolist())
-    c_model = c_ensemble.fit(rt_x_t, rt_y_t)
+    print('rt_x', rt_x.columns.tolist())
+    c_model = c_ensemble.fit(rt_x, rt_y)
 
-    print('***Predict on train***')
-    printer_unique_counter(rt_y_t, 'distribution of train data:')
+    print('***All Training Done!!!***')
 
-    y_pred_t = c_model.predict(rt_x_t)
-    printer_unique_counter(y_pred_t,
-                           'distribution of predict on train (regression):')
+    return ccba_model, cdtx_model, dp_model, remit_model, c_model
 
-    y_pred_t = (y_pred_t >= 0.5).astype(int)
-    printer_unique_counter(
-        y_pred_t, 'distribution of predict on train (classification):')
 
-    printer_metrics(rt_y_t, y_pred_t)
+def prediction(name: str,
+               threshold: float,
+               models: Tuple,
+               xs: Tuple,
+               aks: Tuple[list],
+               y=None):
+    # checker
+    assert len(models) == 5, 'models must be len 5 tuple'
+    assert len(xs) == 5, 'xs must be len 5 tuple'
+    assert len(aks) == 5, 'aks must be len 5 tuple'
 
-    print('***Predict on test***')
+    # input
+    ccba_model, cdtx_model, dp_model, remit_model, c_model = models
+    ccba_x, cdtx_x, dp_x, remit_x, rt_x = xs
+    ccba_ak, cdtx_ak, dp_ak, remit_ak, ak_all = aks
+
+    print(f'\n***Predict on {name}***')
     # predict
-    ccba_y_pred_all = ccba_model.predict(ccba_x_all)
-    cdtx_y_pred_all = cdtx_model.predict(cdtx_x_all)
-    dp_y_pred_all = dp_model.predict(dp_x_all)
-    remit_y_pred_all = remit_model.predict(remit_x_all)
+    ccba_y_pred = ccba_model.predict(ccba_x)
+    cdtx_y_pred = cdtx_model.predict(cdtx_x)
+    dp_y_pred = dp_model.predict(dp_x)
+    remit_y_pred = remit_model.predict(remit_x)
 
     # convert 2d-like list to 1d list (w/ seq. right)
-    ccba_y_pred_all_adj = d.get_ak_adj_list(ccba_ak_all, ccba_y_pred_all,
-                                            rt_ak_all)
-    cdtx_y_pred_all_adj = d.get_ak_adj_list(cdtx_ak_all, cdtx_y_pred_all,
-                                            rt_ak_all)
-    dp_y_pred_all_adj = d.get_ak_adj_list(dp_ak_all, dp_y_pred_all, rt_ak_all)
-    remit_y_pred_all_adj = d.get_ak_adj_list(remit_ak_all, remit_y_pred_all,
-                                             rt_ak_all)
+    ccba_y_pred_adj = d.get_ak_adj_list(ccba_ak, ccba_y_pred, ak_all)
+    cdtx_y_pred_adj = d.get_ak_adj_list(cdtx_ak, cdtx_y_pred, ak_all)
+    dp_y_pred_adj = d.get_ak_adj_list(dp_ak, dp_y_pred, ak_all)
+    remit_y_pred_adj = d.get_ak_adj_list(remit_ak, remit_y_pred, ak_all)
 
     # set to the dataset
-    rt_x_all['ccba'] = ccba_y_pred_all_adj
-    rt_x_all['cdtx0001'] = cdtx_y_pred_all_adj
-    rt_x_all['dp'] = dp_y_pred_all_adj
-    rt_x_all['remit1'] = remit_y_pred_all_adj
+    rt_x['ccba'] = ccba_y_pred_adj
+    rt_x['cdtx0001'] = cdtx_y_pred_adj
+    rt_x['dp'] = dp_y_pred_adj
+    rt_x['remit1'] = remit_y_pred_adj
 
-    print('***Final predict on test***')
+    print(f'***Final predict on {name}***')
+    if y is not None:
+        printer_unique_counter(y, f'distribution of {name} data:')
 
-    y_pred_all = c_model.predict(rt_x_all)
-    printer_unique_counter(y_pred_all, 'distribution of predict on all:')
+    y_pred = c_model.predict(rt_x)
+    printer_unique_counter(y_pred,
+                           f'distribution of predict on {name} (regression):')
+
+    y_pred_class = (y_pred >= threshold).astype(int)
+    printer_unique_counter(
+        y_pred_class,
+        f'distribution of predict on {name} (classification, threshold: {threshold}):'
+    )
+
+    if y is not None:
+        printer_metrics(y, y_pred_class)
+
+    return y_pred
+
+
+def main():
+    threshold = 0.5
+    break_id = -1  # 200
+
+    print('***Datasets***')
+    '''
+    t: train (part of train)
+    v: validation (part of train)
+    all: train + public
+    '''
+    (
+        (
+            # train
+            ((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
+             (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
+            # validation
+            ((ccba_x_v, ccba_y_v, ccba_ak_v), (cdtx_x_v, cdtx_y_v, cdtx_ak_v),
+             (dp_x_v, dp_y_v, dp_ak_v), (remit_x_v, remit_y_v, remit_ak_v)),
+            # all
+            ((ccba_x_all, _, ccba_ak_all), (cdtx_x_all, _, cdtx_ak_all),
+             (dp_x_all, _, dp_ak_all), (remit_x_all, _, remit_ak_all)),
+        ),
+        (
+            # train
+            (rt_x_t, rt_y_t, rt_ak_t),
+            # validation
+            (rt_x_v, rt_y_v, rt_ak_v),
+            # all
+            (rt_x_all, _, rt_ak_all),
+        ),
+    ) = d.do_workhouse(break_id=break_id)
+
+    ## train ##
+    ccba_model, cdtx_model, dp_model, remit_model, c_model = training(
+        (ccba_x_t, cdtx_x_t, dp_x_t, remit_x_t, rt_x_t),
+        (ccba_y_t, cdtx_y_t, dp_y_t, remit_y_t, rt_y_t),
+        (ccba_ak_t, cdtx_ak_t, dp_ak_t, remit_ak_t, rt_ak_t),
+    )
+
+    ## predoction ##
+
+    # train
+    prediction(
+        'train',
+        threshold,
+        (ccba_model, cdtx_model, dp_model, remit_model, c_model),
+        (ccba_x_t, cdtx_x_t, dp_x_t, remit_x_t, rt_x_t),
+        (ccba_ak_t, cdtx_ak_t, dp_ak_t, remit_ak_t, rt_ak_t),
+        rt_y_t,
+    )
+
+    # validation
+    prediction(
+        'validation',
+        threshold,
+        (ccba_model, cdtx_model, dp_model, remit_model, c_model),
+        (ccba_x_v, cdtx_x_v, dp_x_v, remit_x_v, rt_x_v),
+        (ccba_ak_v, cdtx_ak_v, dp_ak_v, remit_ak_v, rt_ak_v),
+        rt_y_v,
+    )
+
+    # test
+    y_pred_all = prediction(
+        'test',
+        threshold,
+        (ccba_model, cdtx_model, dp_model, remit_model, c_model),
+        (ccba_x_all, cdtx_x_all, dp_x_all, remit_x_all, rt_x_all),
+        (ccba_ak_all, cdtx_ak_all, dp_ak_all, remit_ak_all, rt_ak_all),
+    )
 
     print('***Predict on final test***')
     df_pred = d.get_answer_form(rt_ak_all, y_pred_all)

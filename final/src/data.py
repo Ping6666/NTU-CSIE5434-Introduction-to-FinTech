@@ -1,4 +1,4 @@
-from typing import List, Tuple
+from typing import Tuple
 
 import numpy as np
 import pandas as pd
@@ -611,15 +611,23 @@ def get_ak_adj_list(y_alert_keys: list, y_pred: list,
     return rt_list
 
 
-def get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
+def get_data_counter(df_datasets,
+                     df_x_t,
+                     df_x_v,
+                     df_x_p,
+                     df_y,
+                     break_id: int = -1):
     # get alert_key, custinfo, counter
     print("train")
     df_x_ac_id_t = _get_data_counter(df_x_t, df_datasets, break_id)
+    print("validation")
+    df_x_ac_id_v = _get_data_counter(df_x_v, df_datasets, break_id)
     print("public")
     df_x_ac_id_p = _get_data_counter(df_x_p, df_datasets, break_id)
 
     # merge with label
     df_xy_t = pd.merge(df_x_ac_id_t, df_y, on='alert_key')
+    df_xy_v = pd.merge(df_x_ac_id_v, df_y, on='alert_key')
 
     # final process
     ## train data & label
@@ -627,17 +635,27 @@ def get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
     rt_ak_t = df_xy_t['alert_key'].to_numpy()
     rt_x_t = df_xy_t.drop(['alert_key', 'sar_flag'], axis=1)
 
+    rt_y_v = df_xy_v['sar_flag'].to_numpy()
+    rt_ak_v = df_xy_v['alert_key'].to_numpy()
+    rt_x_v = df_xy_v.drop(['alert_key', 'sar_flag'], axis=1)
+
     ## test data
-    df_x_all = pd.concat([df_x_ac_id_t, df_x_ac_id_p],
+    df_x_all = pd.concat([df_x_ac_id_t, df_x_ac_id_v, df_x_ac_id_p],
                          axis=0,
                          ignore_index=True)
     rt_ak_all = df_x_all['alert_key'].to_numpy()
     rt_x_all = df_x_all.drop(['alert_key'], axis=1)
 
-    return (rt_x_t, rt_y_t, rt_ak_t), (rt_x_all, None, rt_ak_all)
+    return ((rt_x_t, rt_y_t, rt_ak_t), (rt_x_v, rt_y_v, rt_ak_v),
+            (rt_x_all, None, rt_ak_all))
 
 
-def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
+def get_datasets(df_datasets,
+                 df_x_t,
+                 df_x_v,
+                 df_x_p,
+                 df_y,
+                 break_id: int = -1):
     # train: get x, y, alert_key
     print("train")
     ccba_x_t, ccba_y_t, ccba_ak_t = get_ccba_y(df_x_t,
@@ -657,6 +675,25 @@ def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
                                                     df_y,
                                                     break_id=break_id)
 
+    # validation: get x, y, alert_key
+    print("validation")
+    ccba_x_v, ccba_y_v, ccba_ak_v = get_ccba_y(df_x_v,
+                                               df_datasets,
+                                               df_y,
+                                               break_id=break_id)
+    cdtx_x_v, cdtx_y_v, cdtx_ak_v = get_cdtx0001_y(df_x_v,
+                                                   df_datasets,
+                                                   df_y,
+                                                   break_id=break_id)
+    dp_x_v, dp_y_v, dp_ak_v = get_dp_y(df_x_v,
+                                       df_datasets,
+                                       df_y,
+                                       break_id=break_id)
+    remit_x_v, remit_y_v, remit_ak_v = get_remit1_y(df_x_v,
+                                                    df_datasets,
+                                                    df_y,
+                                                    break_id=break_id)
+
     # public: get x, y, alert_key
     print("public")
     ccba_x_p, _, ccba_ak_p = get_ccba_y(df_x_p, df_datasets, break_id=break_id)
@@ -669,34 +706,72 @@ def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
                                             break_id=break_id)
 
     ## test data
-    ccba_x_all = pd.concat([ccba_x_t, ccba_x_p], axis=0, ignore_index=True)
-    ccba_ak_all = np.concatenate([ccba_ak_t, ccba_ak_p])
+    ccba_x_all = pd.concat([ccba_x_t, ccba_x_v, ccba_x_p],
+                           axis=0,
+                           ignore_index=True)
+    ccba_ak_all = np.concatenate([ccba_ak_t, ccba_ak_v, ccba_ak_p])
 
-    cdtx_x_all = pd.concat([cdtx_x_t, cdtx_x_p], axis=0, ignore_index=True)
-    cdtx_ak_all = np.concatenate([cdtx_ak_t, cdtx_ak_p])
+    cdtx_x_all = pd.concat([cdtx_x_t, cdtx_x_v, cdtx_x_p],
+                           axis=0,
+                           ignore_index=True)
+    cdtx_ak_all = np.concatenate([cdtx_ak_t, cdtx_ak_v, cdtx_ak_p])
 
-    dp_x_all = pd.concat([dp_x_t, dp_x_p], axis=0, ignore_index=True)
-    dp_ak_all = np.concatenate([dp_ak_t, dp_ak_p])
+    dp_x_all = pd.concat([dp_x_t, dp_x_v, dp_x_p], axis=0, ignore_index=True)
+    dp_ak_all = np.concatenate([dp_ak_t, dp_ak_v, dp_ak_p])
 
-    remit_x_all = pd.concat([remit_x_t, remit_x_p], axis=0, ignore_index=True)
-    remit_ak_all = np.concatenate([remit_ak_t, remit_ak_p])
+    remit_x_all = pd.concat([remit_x_t, remit_x_v, remit_x_p],
+                            axis=0,
+                            ignore_index=True)
+    remit_ak_all = np.concatenate([remit_ak_t, remit_ak_v, remit_ak_p])
 
     return (((ccba_x_t, ccba_y_t, ccba_ak_t), (cdtx_x_t, cdtx_y_t, cdtx_ak_t),
              (dp_x_t, dp_y_t, dp_ak_t), (remit_x_t, remit_y_t, remit_ak_t)),
+            ((ccba_x_v, ccba_y_v, ccba_ak_v), (cdtx_x_v, cdtx_y_v, cdtx_ak_v),
+             (dp_x_v, dp_y_v, dp_ak_v), (remit_x_v, remit_y_v, remit_ak_v)),
             ((ccba_x_all, None, ccba_ak_all), (cdtx_x_all, None, cdtx_ak_all),
              (dp_x_all, None, dp_ak_all), (remit_x_all, None, remit_ak_all)))
 
 
-def do_workhouse(break_id: int = -1):
-    # read csv
+def do_workhouse(v_split: float = 0.1, break_id: int = -1):
+    '''
+    validation split; a ratio (0, 1)
+    '''
+
+    assert v_split > 0 and v_split < 1, 'validation split need to be flaot in between 0 ~ 1'
+
+    ## read csv ##
+    print('csv | dataset')
     df_datasets = read_csv_dataset(base_dir='./data/')
-    df_x_t = read_csv_x(base_dir='./data/', mode='train')
+
+    print('csv | x - train')
+    df_x_all = read_csv_x(base_dir='./data/', mode='train')
+
+    n_t_all = len(df_x_all.index)
+    n_v = int(n_t_all * v_split)
+    n_t = n_t_all - n_v
+
+    df_x_t = df_x_all[:n_t].copy()
+    df_x_t = df_x_t.reset_index(drop=True)
+    df_x_v = df_x_all[-n_v:].copy()
+    df_x_v = df_x_v.reset_index(drop=True)
+
+    assert len(df_x_all.index) == len(df_x_t.index) + len(df_x_v.index)
+
+    print(f'validation split ratio: {v_split} | all: {len(df_x_all.index)},',
+          f'train: {len(df_x_t.index)}, validation: {len(df_x_v.index)}.')
+
+    print('csv | x - public')
     df_x_p = read_csv_x(base_dir='./data/', mode='public')
+
+    print('csv | y')
     df_y = read_csv_y(base_dir='./data/')
 
-    # the getter
-    d = get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id)
-    dc = get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id)
+    ## the getter ##
+    print('getter | datasets')
+    d = get_datasets(df_datasets, df_x_t, df_x_v, df_x_p, df_y, break_id)
+
+    print('getter | data_counter')
+    dc = get_data_counter(df_datasets, df_x_t, df_x_v, df_x_p, df_y, break_id)
 
     return d, dc
 
