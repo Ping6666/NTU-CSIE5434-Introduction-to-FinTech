@@ -71,16 +71,16 @@ def printer_metrics(y_true, y_pred):
 
 
 def main():
-    (df_train_x, train_y), df_all_x_custinfo = d.df_workhouse()
+    (rt_x_t, rt_y_t, _), (rt_x_all, _, rt_ak_all) = d.df_workhouse()
 
     print('***Training***')
     c_ensemble = ensemble_workhouse()
-    c_model = c_ensemble.fit(df_train_x, train_y)
+    c_model = c_ensemble.fit(rt_x_t, rt_y_t)
 
     print('***Predict on train***')
-    printer_unique_counter(train_y, 'distribution of train data:')
+    printer_unique_counter(rt_y_t, 'distribution of train data:')
 
-    y_pred_t = c_model.predict(df_train_x)
+    y_pred_t = c_model.predict(rt_x_t)
     printer_unique_counter(y_pred_t,
                            'distribution of predict on train (regression):')
 
@@ -88,17 +88,17 @@ def main():
     printer_unique_counter(
         y_pred_t, 'distribution of predict on train (classification):')
 
-    printer_metrics(train_y, y_pred_t)
+    printer_metrics(rt_y_t, y_pred_t)
 
     print('***Predict on test***')
-    y_pred_all = c_model.predict(df_all_x_custinfo)
+    y_pred_all = c_model.predict(rt_x_all)
     printer_unique_counter(y_pred_all, 'distribution of predict on all:')
 
     print('***Predict on final test***')
-    df = d.get_answer(df_all_x_custinfo, y_pred_all)
-    printer_unique_counter(df['probability'], 'distribution of submit:')
+    df_pred = d.get_answer_form(rt_ak_all, y_pred_all)
+    df_submit = d.get_submit(df_pred, './pred.csv')
 
-    df.to_csv('./pred.csv', index=False)
+    printer_unique_counter(df_submit['probability'], 'distribution of submit:')
     return
 
 
