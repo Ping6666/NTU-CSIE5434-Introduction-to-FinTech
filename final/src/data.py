@@ -533,7 +533,9 @@ def _get_data_counter(df_alert: pd.DataFrame,
     df_ccba, df_cdtx0001, df_custinfo, df_dp, df_remit1 = dfs
 
     ids_datasets = []
-    for i, c_row in tqdm(df_alert.iterrows(), total=df_alert.shape[0]):
+    for i, c_row in tqdm(df_alert.iterrows(),
+                         desc="_get_data_counter",
+                         total=df_alert.shape[0]):
         if i == break_id:
             break
 
@@ -611,7 +613,9 @@ def get_ak_adj_list(y_alert_keys: list, y_pred: list,
 
 def get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
     # get alert_key, custinfo, counter
+    print("train")
     df_x_ac_id_t = _get_data_counter(df_x_t, df_datasets, break_id)
+    print("public")
     df_x_ac_id_p = _get_data_counter(df_x_p, df_datasets, break_id)
 
     # merge with label
@@ -635,6 +639,7 @@ def get_data_counter(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
 
 def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
     # train: get x, y, alert_key
+    print("train")
     ccba_x_t, ccba_y_t, ccba_ak_t = get_ccba_y(df_x_t,
                                                df_datasets,
                                                df_y,
@@ -653,6 +658,7 @@ def get_datasets(df_datasets, df_x_t, df_x_p, df_y, break_id: int = -1):
                                                     break_id=break_id)
 
     # public: get x, y, alert_key
+    print("public")
     ccba_x_p, _, ccba_ak_p = get_ccba_y(df_x_p, df_datasets, break_id=break_id)
     cdtx_x_p, _, cdtx_ak_p = get_cdtx0001_y(df_x_p,
                                             df_datasets,

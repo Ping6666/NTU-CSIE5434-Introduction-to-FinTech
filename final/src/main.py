@@ -40,22 +40,23 @@ def main():
 
     print('***Training***')
     ccba_ensemble = m.ensemble_workhouse()
-    print('ccba_x_t', ccba_x_t.columns)
+    print('ccba_x_t', ccba_x_t.columns.tolist())
     ccba_model = ccba_ensemble.fit(ccba_x_t, ccba_y_t)
 
     cdtx_ensemble = m.ensemble_workhouse()
-    print('cdtx_x_t', cdtx_x_t.columns)
+    print('cdtx_x_t', cdtx_x_t.columns.tolist())
     cdtx_model = cdtx_ensemble.fit(cdtx_x_t, cdtx_y_t)
 
     dp_ensemble = m.ensemble_workhouse()
-    print('dp_x_t', dp_x_t.columns)
+    print('dp_x_t', dp_x_t.columns.tolist())
     dp_model = dp_ensemble.fit(dp_x_t, dp_y_t)
 
     remit_ensemble = m.ensemble_workhouse()
-    print('remit_x_t', remit_x_t.columns)
+    print('remit_x_t', remit_x_t.columns.tolist())
     remit_model = remit_ensemble.fit(remit_x_t, remit_y_t)
 
     print('***Final Training***')
+    # predict
     ccba_y_pred_t = ccba_model.predict(ccba_x_t)
     cdtx_y_pred_t = cdtx_model.predict(cdtx_x_t)
     dp_y_pred_t = dp_model.predict(dp_x_t)
@@ -74,7 +75,7 @@ def main():
     rt_x_t['remit1'] = remit_y_pred_t_adj
 
     c_ensemble = m.ensemble_workhouse()
-    print('rt_x_t', rt_x_t.columns)
+    print('rt_x_t', rt_x_t.columns.tolist())
     c_model = c_ensemble.fit(rt_x_t, rt_y_t)
 
     print('***Predict on train***')
@@ -90,10 +91,30 @@ def main():
 
     printer_metrics(rt_y_t, y_pred_t)
 
-    print('GOOD')
-    exit(0)
-
     print('***Predict on test***')
+    # predict
+    ccba_y_pred_all = ccba_model.predict(ccba_x_all)
+    cdtx_y_pred_all = cdtx_model.predict(cdtx_x_all)
+    dp_y_pred_all = dp_model.predict(dp_x_all)
+    remit_y_pred_all = remit_model.predict(remit_x_all)
+
+    # convert 2d-like list to 1d list (w/ seq. right)
+    ccba_y_pred_all_adj = d.get_ak_adj_list(ccba_ak_all, ccba_y_pred_all,
+                                            rt_ak_all)
+    cdtx_y_pred_all_adj = d.get_ak_adj_list(cdtx_ak_all, cdtx_y_pred_all,
+                                            rt_ak_all)
+    dp_y_pred_all_adj = d.get_ak_adj_list(dp_ak_all, dp_y_pred_all, rt_ak_all)
+    remit_y_pred_all_adj = d.get_ak_adj_list(remit_ak_all, remit_y_pred_all,
+                                             rt_ak_all)
+
+    # set to the dataset
+    rt_x_all['ccba'] = ccba_y_pred_all_adj
+    rt_x_all['cdtx0001'] = cdtx_y_pred_all_adj
+    rt_x_all['dp'] = dp_y_pred_all_adj
+    rt_x_all['remit1'] = remit_y_pred_all_adj
+
+    print('***Final predict on test***')
+
     y_pred_all = c_model.predict(rt_x_all)
     printer_unique_counter(y_pred_all, 'distribution of predict on all:')
 
@@ -102,6 +123,9 @@ def main():
     df_submit = d.get_submit(df_pred, './pred.csv')
 
     printer_unique_counter(df_submit['probability'], 'distribution of submit:')
+
+    print('GOOD')
+
     return
 
 
