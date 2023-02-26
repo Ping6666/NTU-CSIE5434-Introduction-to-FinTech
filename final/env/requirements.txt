@@ -1,0 +1,8 @@
+# requirements
+tqdm
+numpy
+pandas
+scikit-learn
+xgboost == 1.7.1
+
+yapf
