@@ -5,6 +5,16 @@ import pandas as pd
 
 from tqdm import tqdm
 
+## constant ##
+
+L_CCBA = 30
+L_CDTX0001 = 1  # 5
+# L_CUSTINFO = 1  # 5
+L_DP = 1  # 5
+L_REMIT1 = 1  # 5
+
+## read csv ##
+
 
 def read_csv_dataset(base_dir):
     #
@@ -27,6 +37,33 @@ def read_csv_dataset(base_dir):
                 'cucsm': float,  # 本月消費金額 數值型 經過神秘轉換
                 'cucah': float,  # 本月借現金額 數值型 經過神秘轉換
             }))
+
+    def am_norm(a, b):
+        '''
+        a: cycam
+        b: usgam
+        '''
+        n = 0
+        try:
+            n = int((float(b) / float(a)) * 1000)
+        except:
+            n = 0
+
+        return n
+
+    c_attr = ['cycam', 'usgam']
+    df_ccba_tp['cy_us_cam'] = df_ccba_tp[c_attr].apply(lambda x: am_norm(*x),
+                                                       axis=1)
+
+    df_ccba_tp = df_ccba_tp.drop(['lupay'], axis=1)
+
+    df_ccba_tp = df_ccba_tp.drop(['cycam', 'usgam'], axis=1)
+
+    df_ccba_tp = df_ccba_tp.drop(
+        ['clamt', 'csamt', 'inamt', 'cucsm', 'cucah'],
+        axis=1,
+    )
+
     print('df_ccba_tp', df_ccba_tp.isna().sum())
     print()
 
@@ -45,6 +82,9 @@ def read_csv_dataset(base_dir):
                 'cur_type': int,  # 消費地幣別 類別型 經過神秘轉換，(47 = 台幣)
                 'amt': float,  # 交易金額-台幣 數值型 經過神秘轉換
             }))
+
+    df_cdtx0001_tp = df_cdtx0001_tp.drop(['country', 'cur_type'], axis=1)
+
     print('df_cdtx0001_tp', df_cdtx0001_tp.isna().sum())
     print()
 
@@ -64,7 +104,9 @@ def read_csv_dataset(base_dir):
                 'total_asset': float,  # 行內總資產 數值型 經過神秘轉換
                 'AGE': int,  # 年齡 類別型
             }))
+
     df_custinfo_tp['occupation_code'].fillna(value=-1.0, inplace=True)
+
     print('df_custinfo_tp', df_custinfo_tp.isna().sum())
     print()
 
@@ -101,13 +143,14 @@ def read_csv_dataset(base_dir):
 
     df_dp_tp['debit_credit'] = df_dp_tp['debit_credit'].apply(
         debit_credit_to_numeric)
-    # df_dp_tp = df_dp_tp.drop(['debit_credit'], axis=1)
 
-    df_dp_tp = df_dp_tp.drop(['exchg_rate'], axis=1)
+    df_dp_tp['tx_amt'].fillna(value=0.0, inplace=True)
+    # df_dp_tp['fiscTxId'].fillna(value=-1.0, inplace=True)
+    # df_dp_tp['txbranch'].fillna(value=-1.0, inplace=True)
 
-    df_dp_tp['tx_amt'].fillna(value=-1.0, inplace=True)
-    df_dp_tp['fiscTxId'].fillna(value=-1.0, inplace=True)
-    df_dp_tp['txbranch'].fillna(value=-1.0, inplace=True)
+    df_dp_tp = df_dp_tp.drop(
+        ['exchg_rate', 'info_asset_code', 'fiscTxId', 'txbranch'], axis=1)
+
     print('df_dp_tp', df_dp_tp.isna().sum())
     print()
 
@@ -125,6 +168,9 @@ def read_csv_dataset(base_dir):
                 'trans_no': int,  # 交易編號 類別型 經過神秘轉換，代表不同的匯出方式
                 'trade_amount_usd': float,  # 交易金額(折合美金) 數值型 經過神秘轉換
             }))
+
+    df_remit1_tp = df_remit1_tp.drop(['trans_no'], axis=1)
+
     print('df_remit1_tp', df_remit1_tp.isna().sum())
     print()
 
@@ -230,7 +276,7 @@ def get_ccba_y(df_x: pd.DataFrame,
         ## use copy() prevent SettingWithCopyWarning
         c_ccba = df_ccba[((df_ccba['cust_id'] == c_cust_id) &
                           (df_ccba['byymm'] <= c_date) &
-                          (df_ccba['byymm'] > c_date - 30))].copy()
+                          (df_ccba['byymm'] > c_date - L_CCBA))].copy()
         c_ccba['alert_key'] = c_ak
         ccbas.append(c_ccba)
         total_length += len(c_ccba)
@@ -310,9 +356,10 @@ def get_cdtx0001_y(df_x: pd.DataFrame,
 
         # ccba
         ## use copy() prevent SettingWithCopyWarning
-        c_cdtx0001 = df_cdtx0001[((df_cdtx0001['cust_id'] == c_cust_id) &
-                                  (df_cdtx0001['date'] <= c_date) &
-                                  (df_cdtx0001['date'] > c_date - 30))].copy()
+        c_cdtx0001 = df_cdtx0001[(
+            (df_cdtx0001['cust_id'] == c_cust_id) &
+            (df_cdtx0001['date'] <= c_date) &
+            (df_cdtx0001['date'] > c_date - L_CDTX0001))].copy()
         c_cdtx0001['alert_key'] = c_ak
         cdtx0001s.append(c_cdtx0001)
         total_length += len(c_cdtx0001)
@@ -391,7 +438,7 @@ def get_dp_y(df_x: pd.DataFrame,
         ## use copy() prevent SettingWithCopyWarning
         c_dp = df_dp[((df_dp['cust_id'] == c_cust_id) &
                       (df_dp['tx_date'] <= c_date) &
-                      (df_dp['tx_date'] > c_date - 30))].copy()
+                      (df_dp['tx_date'] > c_date - L_DP))].copy()
         c_dp['alert_key'] = c_ak
         dps.append(c_dp)
         total_length += len(c_dp)
@@ -472,9 +519,10 @@ def get_remit1_y(df_x: pd.DataFrame,
 
         # ccba
         ## use copy() prevent SettingWithCopyWarning
-        c_remit1 = df_remit1[((df_remit1['cust_id'] == c_cust_id) &
-                              (df_remit1['trans_date'] <= c_date) &
-                              (df_remit1['trans_date'] > c_date - 30))].copy()
+        c_remit1 = df_remit1[(
+            (df_remit1['cust_id'] == c_cust_id) &
+            (df_remit1['trans_date'] <= c_date) &
+            (df_remit1['trans_date'] > c_date - L_REMIT1))].copy()
         c_remit1['alert_key'] = c_ak
         dps.append(c_remit1)
         total_length += len(c_remit1)
@@ -534,82 +582,97 @@ def _get_data_counter(df_alert: pd.DataFrame,
     df_remit1: pd.DataFrame
     df_ccba, df_cdtx0001, df_custinfo, df_dp, df_remit1 = dfs
 
-    ids_datasets = []
-    for i, c_row in tqdm(df_alert.iterrows(),
-                         desc="_get_data_counter",
-                         total=df_alert.shape[0]):
-        if i == break_id:
-            break
+    # ids_datasets = []
+    # for i, c_row in tqdm(df_alert.iterrows(),
+    #                      desc="_get_data_counter",
+    #                      total=df_alert.shape[0]):
+    #     if i == break_id:
+    #         break
 
-        # custinfo
-        c_cust_id = df_custinfo.loc[(
-            df_custinfo['alert_key'] == c_row['alert_key'])]
-        c_cust_id = c_cust_id['cust_id'].values[0]
-        c_date = c_row['date']
+    #     # custinfo
+    #     c_cust_id = df_custinfo.loc[(
+    #         df_custinfo['alert_key'] == c_row['alert_key'])]
+    #     c_cust_id = c_cust_id['cust_id'].values[0]
+    #     c_date = c_row['date']
 
-        # ccba
-        c_ccba = ((df_ccba['cust_id'] == c_cust_id) &
-                  (df_ccba['byymm'] <= c_date)
-                  & (df_ccba['byymm'] > c_date - 30)).sum()
-        # c_ccba = df_ccba.loc[((df_ccba['cust_id'] == c_cust_id) &
-        #                       (df_ccba['byymm'] <= c_date) &
-        #                       (df_ccba['byymm'] > c_date - 30))]
+    #     # ccba
+    #     c_ccba = ((df_ccba['cust_id'] == c_cust_id) &
+    #               (df_ccba['byymm'] <= c_date)
+    #               & (df_ccba['byymm'] > c_date - L_CCBA)).sum()
+    #     # c_ccba = df_ccba.loc[((df_ccba['cust_id'] == c_cust_id) &
+    #     #                       (df_ccba['byymm'] <= c_date) &
+    #     #                       (df_ccba['byymm'] > c_date - L_CCBA))]
 
-        # cdtx0001
-        c_cdtx0001 = ((df_cdtx0001['cust_id'] == c_cust_id) &
-                      (df_cdtx0001['date'] <= c_date) &
-                      (df_cdtx0001['date'] > c_date - 30)).sum()
-        # c_cdtx0001 = df_cdtx0001.loc[((df_cdtx0001['cust_id'] == c_cust_id) &
-        #                               (df_cdtx0001['date'] <= c_date) &
-        #                               (df_cdtx0001['date'] > c_date - 30))]
+    #     # cdtx0001
+    #     c_cdtx0001 = ((df_cdtx0001['cust_id'] == c_cust_id) &
+    #                   (df_cdtx0001['date'] <= c_date) &
+    #                   (df_cdtx0001['date'] > c_date - L_CDTX0001)).sum()
+    #     # c_cdtx0001 = df_cdtx0001.loc[((df_cdtx0001['cust_id'] == c_cust_id) &
+    #     #                               (df_cdtx0001['date'] <= c_date) &
+    #     #                               (df_cdtx0001['date'] > c_date - L_CDTX0001))]
 
-        # dp
-        c_dp = ((df_dp['cust_id'] == c_cust_id) & (df_dp['tx_date'] <= c_date)
-                & (df_dp['tx_date'] > c_date - 30)).sum()
-        # c_dp = df_dp.loc[((df_dp['cust_id'] == c_cust_id) &
-        #                   (df_dp['tx_date'] <= c_date) &
-        #                   (df_dp['tx_date'] > c_date - 30))]
+    #     # dp
+    #     c_dp = ((df_dp['cust_id'] == c_cust_id) & (df_dp['tx_date'] <= c_date)
+    #             & (df_dp['tx_date'] > c_date - L_DP)).sum()
+    #     # c_dp = df_dp.loc[((df_dp['cust_id'] == c_cust_id) &
+    #     #                   (df_dp['tx_date'] <= c_date) &
+    #     #                   (df_dp['tx_date'] > c_date - L_DP))]
 
-        # remit1
-        c_remit1 = ((df_remit1['cust_id'] == c_cust_id) &
-                    (df_remit1['trans_date'] <= c_date) &
-                    (df_remit1['trans_date'] > c_date - 30)).sum()
-        # c_remit1 = df_remit1.loc[((df_remit1['cust_id'] == c_cust_id) &
-        #                           (df_remit1['trans_date'] <= c_date) &
-        #                           (df_remit1['trans_date'] > c_date - 30))]
+    #     # remit1
+    #     c_remit1 = ((df_remit1['cust_id'] == c_cust_id) &
+    #                 (df_remit1['trans_date'] <= c_date) &
+    #                 (df_remit1['trans_date'] > c_date - L_REMIT1)).sum()
+    #     # c_remit1 = df_remit1.loc[((df_remit1['cust_id'] == c_cust_id) &
+    #     #                           (df_remit1['trans_date'] <= c_date) &
+    #     #                           (df_remit1['trans_date'] > c_date - L_REMIT1))]
 
-        ids_datasets.append({
-            # 'cust_id': c_cust_id,
-            'n_ccba': c_ccba,
-            'n_cdtx0001': c_cdtx0001,
-            'n_dp': c_dp,
-            'n_remit1': c_remit1,
-        })
-    df_id = pd.DataFrame.from_dict(ids_datasets)
+    #     ids_datasets.append({
+    #         # 'cust_id': c_cust_id,
+    #         'n_ccba': c_ccba,
+    #         'n_cdtx0001': c_cdtx0001,
+    #         'n_dp': c_dp,
+    #         'n_remit1': c_remit1,
+    #     })
+    # df_id = pd.DataFrame.from_dict(ids_datasets)
 
     df_ac = pd.merge(df_alert, df_custinfo, on='alert_key')
-    df_ac_id = pd.concat([df_ac, df_id], axis=1)
+
+    # df_ac_id = pd.concat([df_ac, df_id], axis=1)
+    df_ac_id = df_ac
+
     df_ac_id = df_ac_id.drop(['date', 'cust_id'], axis=1)
     df_ac_id = df_ac_id.dropna()
 
     return df_ac_id
 
 
-def get_ak_adj_list(y_alert_keys: list, y_pred: list,
+def get_ak_adj_list(mode: str, y_alert_keys: list, y_pred: list,
                     all_alert_keys: list) -> list:
+    '''
+    mode: 'train' or 'dev'
+    '''
+
     # for those in y_alert_keys
     rt_dict = {}
-    for ak, y in zip(y_alert_keys, y_pred):
-        if ak not in rt_dict.keys():
-            rt_dict[ak] = y
-        else:
-            rt_dict[ak] += y
+
+    if mode == 'train':
+        for ak, y in zip(y_alert_keys, y_pred):
+            if ak not in rt_dict.keys() or rt_dict[ak] < y:
+                rt_dict[ak] = y
+    elif mode == 'dev':
+        for ak, y in zip(y_alert_keys, y_pred):
+            if ak not in rt_dict.keys():
+                rt_dict[ak] = y
+            else:
+                rt_dict[ak] += y
+    else:
+        raise ValueError
 
     # adj. the rt_dict to list like w/ seq. as all_alert_keys
     rt_list = []
     for ak in all_alert_keys:
         if ak not in rt_dict.keys():
-            rt_list.append(-1)
+            rt_list.append(0)  # -1
         else:
             rt_list.append(rt_dict[ak])
     return rt_list

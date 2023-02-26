@@ -2,7 +2,7 @@ from typing import Tuple
 
 import numpy as np
 
-from sklearn import metrics
+from sklearn import metrics, preprocessing
 
 import data as d
 import model as m
@@ -10,6 +10,7 @@ import model as m
 
 def printer_unique_counter(n: np.ndarray, pre_str: str = None):
     unique, counts = np.unique(n, return_counts=True)
+    print(len(unique), end=' ')
     if pre_str != None:
         print(pre_str, end=' ')
     print(dict(zip(unique, counts)))
@@ -63,6 +64,14 @@ def printer_metrics(y_true, y_pred):
     return
 
 
+def min_max(_y_pred):
+    # make sure output in between 0~1
+    mm_scaler = preprocessing.MinMaxScaler()
+    y_pred = mm_scaler.fit_transform(_y_pred.reshape(-1, 1))
+    y_pred = y_pred.reshape(-1, )
+    return y_pred
+
+
 def training(xs, ys, aks):
     # checker
     assert len(xs) == 5, 'xs must be len 5 tuple'
@@ -77,22 +86,22 @@ def training(xs, ys, aks):
     print('***Training***')
 
     # ccba
-    ccba_ensemble = m.ensemble_workhouse()
+    ccba_ensemble = m.model_workhouse()
     print('ccba_x', ccba_x.columns.tolist())
     ccba_model = ccba_ensemble.fit(ccba_x, ccba_y)
 
     # cdtx
-    cdtx_ensemble = m.ensemble_workhouse()
+    cdtx_ensemble = m.model_workhouse()
     print('cdtx_x', cdtx_x.columns.tolist())
     cdtx_model = cdtx_ensemble.fit(cdtx_x, cdtx_y)
 
     # dp
-    dp_ensemble = m.ensemble_workhouse()
+    dp_ensemble = m.model_workhouse()
     print('dp_x', dp_x.columns.tolist())
     dp_model = dp_ensemble.fit(dp_x, dp_y)
 
     # remit
-    remit_ensemble = m.ensemble_workhouse()
+    remit_ensemble = m.model_workhouse()
     print('remit_x', remit_x.columns.tolist())
     remit_model = remit_ensemble.fit(remit_x, remit_y)
 
@@ -104,10 +113,11 @@ def training(xs, ys, aks):
     remit_y_pred = remit_model.predict(remit_x)
 
     # convert 2d-like list to 1d list (w/ seq. right)
-    ccba_y_pred_adj = d.get_ak_adj_list(ccba_ak, ccba_y_pred, rt_ak)
-    cdtx_y_pred_adj = d.get_ak_adj_list(cdtx_ak, cdtx_y_pred, rt_ak)
-    dp_y_pred_adj = d.get_ak_adj_list(dp_ak, dp_y_pred, rt_ak)
-    remit_y_pred_adj = d.get_ak_adj_list(remit_ak, remit_y_pred, rt_ak)
+    mode = 'train'
+    ccba_y_pred_adj = d.get_ak_adj_list(mode, ccba_ak, ccba_y_pred, rt_ak)
+    cdtx_y_pred_adj = d.get_ak_adj_list(mode, cdtx_ak, cdtx_y_pred, rt_ak)
+    dp_y_pred_adj = d.get_ak_adj_list(mode, dp_ak, dp_y_pred, rt_ak)
+    remit_y_pred_adj = d.get_ak_adj_list(mode, remit_ak, remit_y_pred, rt_ak)
 
     # set to the dataset
     rt_x['ccba'] = ccba_y_pred_adj
@@ -115,7 +125,7 @@ def training(xs, ys, aks):
     rt_x['dp'] = dp_y_pred_adj
     rt_x['remit1'] = remit_y_pred_adj
 
-    c_ensemble = m.ensemble_workhouse()
+    c_ensemble = m.model_workhouse()
     print('rt_x', rt_x.columns.tolist())
     c_model = c_ensemble.fit(rt_x, rt_y)
 
@@ -148,10 +158,11 @@ def prediction(name: str,
     remit_y_pred = remit_model.predict(remit_x)
 
     # convert 2d-like list to 1d list (w/ seq. right)
-    ccba_y_pred_adj = d.get_ak_adj_list(ccba_ak, ccba_y_pred, ak_all)
-    cdtx_y_pred_adj = d.get_ak_adj_list(cdtx_ak, cdtx_y_pred, ak_all)
-    dp_y_pred_adj = d.get_ak_adj_list(dp_ak, dp_y_pred, ak_all)
-    remit_y_pred_adj = d.get_ak_adj_list(remit_ak, remit_y_pred, ak_all)
+    mode = 'dev'
+    ccba_y_pred_adj = d.get_ak_adj_list(mode, ccba_ak, ccba_y_pred, ak_all)
+    cdtx_y_pred_adj = d.get_ak_adj_list(mode, cdtx_ak, cdtx_y_pred, ak_all)
+    dp_y_pred_adj = d.get_ak_adj_list(mode, dp_ak, dp_y_pred, ak_all)
+    remit_y_pred_adj = d.get_ak_adj_list(mode, remit_ak, remit_y_pred, ak_all)
 
     # set to the dataset
     rt_x['ccba'] = ccba_y_pred_adj
@@ -160,12 +171,17 @@ def prediction(name: str,
     rt_x['remit1'] = remit_y_pred_adj
 
     print(f'***Final predict on {name}***')
+    _y_pred = c_model.predict(rt_x)
+    y_pred = min_max(_y_pred)
+
+    print(f'***Result of {name}***')
     if y is not None:
         printer_unique_counter(y, f'distribution of {name} data:')
 
-    y_pred = c_model.predict(rt_x)
-    printer_unique_counter(y_pred,
-                           f'distribution of predict on {name} (regression):')
+    unique, counts = np.unique(y_pred, return_counts=True)
+    print('unique:', len(unique))
+    # printer_unique_counter(y_pred,
+    #                        f'distribution of predict on {name} (regression):')
 
     y_pred_class = (y_pred >= threshold).astype(int)
     printer_unique_counter(
@@ -182,7 +198,7 @@ def prediction(name: str,
 
 def main():
     threshold = 1.0  # 0.5, 1.0
-    break_id = 200  # -1, 200, 500
+    break_id = -1  # -1, 100, 200, 500, 1000
 
     print('***Datasets***')
     '''
@@ -220,6 +236,7 @@ def main():
     ) = d.do_workhouse(break_id=break_id)
 
     ## train ##
+
     ccba_model, cdtx_model, dp_model, remit_model, c_model = training(
         (ccba_x_t, cdtx_x_t, dp_x_t, remit_x_t, rt_x_t),
         (ccba_y_t, cdtx_y_t, dp_y_t, remit_y_t, rt_y_t),

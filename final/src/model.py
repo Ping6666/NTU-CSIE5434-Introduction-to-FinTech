@@ -1,19 +1,39 @@
 from sklearn import ensemble
+from xgboost import XGBRegressor, XGBRFRegressor
 
 
-def ensemble_workhouse():
-    c_ensemble = ensemble.ExtraTreesRegressor(n_estimators=200)
+def model_workhouse():
+    random_state = 5487  # aka. the seed
 
-    # c_ensemble = ensemble.RandomForestRegressor(n_estimators=200)
+    #### sklearn.ensemble ####
 
-    # c_ensemble = ensemble.BaggingRegressor(n_estimators=200)
+    ## rp ##
+    # train: 1.0
+    # validation: 0.005434782608695652
+    # public: 0.006218905472636816
+    # c_model = ensemble.ExtraTreesRegressor(n_estimators=200)
 
-    # but output between -1 or 1
-    # c_ensemble = ensemble.GradientBoostingRegressor(n_estimators=200, learning_rate=1)
+    ## rp ##
+    # train: 0.010565684899485742
+    # validation: 0.005429864253393665
+    # public: 0.006218905472636816
+    # c_model = ensemble.RandomForestRegressor(n_estimators=200)
+
+    # c_model = ensemble.BaggingRegressor(n_estimators=200)
 
     # can not map well on distribution
-    # c_ensemble = ensemble.AdaBoostRegressor(n_estimators=200, learning_rate=1)
+    # c_model = ensemble.AdaBoostRegressor(n_estimators=200, learning_rate=1)
 
-    # but output between -1 or 1
-    # c_ensemble = ensemble.HistGradientBoostingRegressor(learning_rate=1)
-    return c_ensemble
+    # strange outcome
+    # c_model = ensemble.GradientBoostingRegressor(n_estimators=200, learning_rate=1)
+
+    # strange outcome
+    # c_model = ensemble.HistGradientBoostingRegressor(learning_rate=1)
+
+    #### xgboost ####
+
+    c_model = XGBRFRegressor(random_state=random_state)
+
+    # c_model = XGBRegressor(random_state=random_state)
+
+    return c_model
